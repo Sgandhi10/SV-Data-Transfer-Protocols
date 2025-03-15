@@ -17,10 +17,6 @@ module tb_I2C_Perhiperal();
     logic scl;
 
     I2C_Peripheral i2c_peripheral(
-        .clk(clk),
-        .rst(rst),
-        .sda(sda),
-        .scl(scl)
     );
 
     initial begin
