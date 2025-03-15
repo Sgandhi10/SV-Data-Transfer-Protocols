@@ -82,6 +82,24 @@ module tb_FIFO ();
         #20;
 
         // Test for push and pop at the same time
+        push = 1;
+        pop = 0;
+        data_in = 8'h5F;
+        #10;
+        pop = 1;
+        data_in = 8'h6F;
+        #10;
+        data_in = 8'h7F;
+        #10;
+        data_in = 8'h8F;
+        #10;
+        push = 0;
+        pop = 0;
+        #20;
+        pop = 1;
+        #50;
+
+
         pop = 0;
         push = 0;
         #10;

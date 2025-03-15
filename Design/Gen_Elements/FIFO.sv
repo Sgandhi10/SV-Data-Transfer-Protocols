@@ -4,8 +4,10 @@
 * Date: 2025-03-14
 * Description: This file creates a basic FIFO module capable of storing N elements
 *              and performing basic operations like push and pop.
-* Version: 1.0 (SG): Capable of storing elements and performing push and pop operations
-*                    on different clock cycles.
+* Version:  2.0 (SG): Added ability to work with push and pop on operations on the 
+*                     same cycle.
+*           1.0 (SG): Capable of storing elements and performing push and pop 
+*                     operations on different clock cycles.
 *******************************************************************************/
 
 module FIFO #(
@@ -36,26 +38,32 @@ module FIFO #(
             elements <= 0;
             data_out <= 0;
         end else begin
-            // if (push && pop) begin 
-            //     data[head] <= data_in;
-            //     head <= head + 1;
-            //     elements <= elements;
-            //     if (head == (N_SIZE - 1)) begin
-            //         head <= 0;
-            //     end
-            //     data_out <= data[(head - elements) & ((1 << $clog2(N_SIZE)) - 1)];
-            // end
-            if (push && !full) begin
+            if (push && pop) begin 
                 data[head] <= data_in;
                 head <= head + 1;
-                elements <= elements + 1;
+                elements <= elements;
                 if (head == (N_SIZE - 1)) begin
                     head <= 0;
                 end
+                if (empty) begin
+                    data_out <= data_in;
+                end
+                else begin
+                    data_out <= data[(head - elements) & ((1 << $clog2(N_SIZE)) - 1)];
+                end
             end
-            if (pop && !empty) begin
-                elements <= elements - 1;
-                data_out <= data[(head - elements) & ((1 << $clog2(N_SIZE)) - 1)];
+            else begin 
+                if (push && !full) begin
+                    data[head] <= data_in;
+                    head <= head + 1;
+                    elements <= elements + 1;
+                    if (head == (N_SIZE - 1)) begin
+                        head <= 0;
+                    end
+                end else if (pop && !empty) begin
+                    elements <= elements - 1;
+                    data_out <= data[(head - elements) & ((1 << $clog2(N_SIZE)) - 1)];
+                end
             end
         end
     end
