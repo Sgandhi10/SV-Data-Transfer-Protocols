@@ -26,7 +26,7 @@ module I2C_Controller #(
     
     // Instantiate FIFO
     logic fifo_full, fifo_empty, fifo_pop;
-    logic [ADDR_WIDTH + DATA_WIDTH + 1 : 0] fifo_data_out;
+    logic [ADDR_WIDTH + DATA_WIDTH - 1 : 0] fifo_data_out;
 
     FIFO # (
         .N_BITS (ADDR_WIDTH + DATA_WIDTH + 1),
@@ -77,12 +77,10 @@ module I2C_Controller #(
     always_ff @(posedge clk or negedge clk or negedge rst_n) begin
         if (~rst_n) begin
             pres_state <= IDLE;
+            scl_clk <= 1'b0;
             sda_en <= 1'b0;
             scl_en <= 1'b0;
             stall_count <= 0;
-            fifo_pop <= 1'b0;
-            o_valid <= 1'b0;
-            o_data <= 'd0;
         end
         if (clk)  // Rising edge
         begin
@@ -105,11 +103,18 @@ module I2C_Controller #(
                     scl_en <= 1'b1;
 
                     // Reset all inputs
-                    a_count <= ADDR_WIDTH - 1;
-                    d_count <= DATA_WIDTH - 1;
+                    a_count <= 0;
+                    d_count <= 0;
                     stop_state <= 1'b0;
 
                     fifo_pop <= 1'b0;
+                    pres_state <= RW;
+                end
+                RW: begin
+                    sda_out <= rw;  
+                    sda_en <= 1'b1;
+                    scl_en <= 1'b1;
+
                     pres_state <= ADDR;
                 end
                 ADDR: begin
@@ -117,17 +122,10 @@ module I2C_Controller #(
                     sda_en <= 1'b1;
                     scl_en <= 1'b1;
 
-                    if (a_count == 0)
-                        pres_state <= RW;
+                    if (a_count == (ADDR_WIDTH - 1))
+                        pres_state <= PRE_ACK;
                     else
-                        a_count <= a_count - 1;
-                end
-                RW: begin
-                    sda_out <= rw;  
-                    sda_en <= 1'b1;
-                    scl_en <= 1'b1;
-
-                    pres_state <= PRE_ACK;
+                        a_count <= a_count + 1;
                 end
                 PRE_ACK: begin
                     sda_en <= 1'b0;
@@ -141,47 +139,42 @@ module I2C_Controller #(
 
                     if (sda == 1'b1) begin
                         stall_count++;
-                        if (stall_count == 5'b11111) begin
-                            sda_out <= 1'b0;  // Generate stop condition
-                            scl_out <= 1'b0;
-                            sda_en <= 1'b1;
-                            scl_en <= 1'b1;
-
+                        if (stall_count == 5'b11111 || d_count == (DATA_WIDTH))
                             pres_state <= STOP;
-                        end
                         else if (stall_count[2:0] == 3'b111) begin
                             pres_state <= START;
                         end
                     end else
-                        if (d_count == '1) begin
-                            sda_out <= 1'b0;  // Generate stop condition
-                            scl_out <= 1'b0;
-                            sda_en <= 1'b1;
-                            scl_en <= 1'b1;
-
-                            pres_state <= STOP;
-                        end else
-                            pres_state <= DATA;
+                        pres_state <= DATA;
                 end
                 DATA: begin
                     sda_out <= data[d_count];  
                     sda_en <= 1'b1;
                     scl_en <= 1'b1;
 
-                    d_count <= d_count - 1;
-                    if (d_count[2:0] == 3'b000) begin
+                    d_count <= d_count + 1;
+                    if (d_count[2:0] == 3'b111) begin
                         pres_state <= PRE_ACK;
                     end
                 end
                 STOP: begin
-                    sda_en <= 1'b0;
-                    scl_en <= 1'b0;
-                    pres_state <= IDLE;
+                    sda_out <= 1'b0;  // Generate stop condition
+                    sda_en <= 1'b1;
+                    scl_en <= 1'b1;
+
+                    stop_state <= 1'b1;
+                    if (stop_state == 1'b1) begin
+                        sda_en <= 1'b0;
+                        scl_en <= 1'b0;
+                        pres_state <= IDLE;
+                    end
                 end
             endcase
         end
         else begin
-            scl_out <= 1'b1;
+            // Falling edge
+            if (pres_state != STOP)
+                scl_out <= 1'b0;
         end
     end
 endmodule
