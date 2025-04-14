@@ -1,45 +1,77 @@
+/*******************************************************************************
+* File: I2C_Controller.sv
+* Author: Soham Gandhi
+* Date: 2025-04-03
+* Description: I2C controller module.
+* Version: 1.0
+*******************************************************************************/
+
 module I2C_Controller #(
     parameter ADDR_WIDTH = 8,
-    parameter DATA_WIDTH = 32
+    parameter DATA_WIDTH = 32,
+    parameter ADDRESS = 8'h49
 ) (
-    // I2C interface
-    inout logic scl,      // I2C clock signal
-    inout logic sda,      // I2C data signal
-
     // Device Input Signals
-    input logic clk,      
-    input logic rst_n,    
+    input  logic                    clk,      
+    input  logic                    rst_n, 
 
-    input logic [ADDR_WIDTH-1 : 0] p_addr,  
-    input logic [DATA_WIDTH-1 : 0] p_data,  
+    // I2C interface
+    inout  logic                    scl,      // I2C clock signal
+    inout  logic                    sda,      // I2C data signal
 
-    input logic p_rw,      
-    input logic i_valid,   
-
-    // Device Output Signals
-    output logic o_valid,   
+    input  logic                    i_valid,   
+    input  logic [ADDR_WIDTH-1 : 0] i_addr,  
+    input  logic                    i_rw,  
+    input  logic [DATA_WIDTH-1 : 0] i_data,  
+  
+    // Output Data Signals
+    input  logic                    o_request,
+    output logic                    o_empty,  
+    output logic                    o_valid,   
     output logic [DATA_WIDTH-1 : 0] o_data
 );
     // Setup Pull-up resistors
     pullup(scl);
     pullup(sda);
     
-    // Instantiate FIFO
-    logic fifo_full, fifo_empty, fifo_pop;
-    logic [ADDR_WIDTH + DATA_WIDTH + 1 : 0] fifo_data_out;
+    // Instantiate Input FIFO
+    logic i_fifo_full, i_fifo_empty, i_fifo_pop;
+    logic [ADDR_WIDTH + DATA_WIDTH : 0] i_fifo_data_out;
 
     FIFO # (
         .N_BITS (ADDR_WIDTH + DATA_WIDTH + 1),
         .N_SIZE (16)
-    ) fifo (
+    ) i_fifo (
         .clk (clk),
         .rst_n (rst_n),
         .push (i_valid),
-        .pop (fifo_pop),
-        .data_in ({p_addr, p_data, p_rw}),
-        .data_out (fifo_data_out),
-        .full (fifo_full),
-        .empty (fifo_empty)
+        .pop (i_fifo_pop),
+        .data_in ({i_addr, i_data, i_rw}),
+        .data_out (i_fifo_data_out),
+        .full (i_fifo_full),
+        .empty (i_fifo_empty)
+    );
+
+    // Instantiate Output FIFO
+    logic o_fifo_full, o_fifo_empty, o_fifo_pop, rb_i_valid;
+    logic [DATA_WIDTH - 1 : 0] o_fifo_data_out;
+
+    assign o_fifo_pop = o_request;
+    assign o_empty = o_fifo_empty;
+    assign o_data = o_fifo_data_out;
+
+    FIFO # (
+        .N_BITS (DATA_WIDTH),
+        .N_SIZE (16)
+    ) o_fifo (
+        .clk (clk),
+        .rst_n (rst_n),
+        .push (rb_i_valid),
+        .pop (o_fifo_pop),
+        .data_in (rb_data), // read-back data
+        .data_out (o_fifo_data_out),
+        .full (o_fifo_full),
+        .empty (o_fifo_empty)
     );
 
     // Declare Required Registers
@@ -51,6 +83,7 @@ module I2C_Controller #(
         PRE_ACK,
         ACK,
         DATA,
+        RB_DATA,
         STOP
     } state_t; 
 
@@ -58,7 +91,6 @@ module I2C_Controller #(
     reg [$clog2(ADDR_WIDTH):0] a_count;
     reg [$clog2(DATA_WIDTH):0] d_count;
     reg [4:0] stall_count;
-    reg stop_state = 1'b0;
 
     logic sda_out; // Internal signal to control sda
     logic scl_out; // Internal signal to control scl
@@ -72,7 +104,9 @@ module I2C_Controller #(
     // FIFO Interface
     logic [ADDR_WIDTH-1 : 0] addr;
     logic [DATA_WIDTH-1 : 0] data;
-    assign {addr, data, rw} = fifo_data_out;
+    logic [DATA_WIDTH-1 : 0] rb_data;
+    logic                    rw;
+    assign {addr, data, rw} = i_fifo_data_out;
     // State Machine
     always_ff @(posedge clk or negedge clk or negedge rst_n) begin
         if (~rst_n) begin
@@ -80,9 +114,10 @@ module I2C_Controller #(
             sda_en <= 1'b0;
             scl_en <= 1'b0;
             stall_count <= 0;
-            fifo_pop <= 1'b0;
+            i_fifo_pop <= 1'b0;
             o_valid <= 1'b0;
             o_data <= 'd0;
+            rb_i_valid <= 1'b0;
         end
         if (clk)  // Rising edge
         begin
@@ -91,12 +126,13 @@ module I2C_Controller #(
                 IDLE: begin
                     sda_en <= 1'b0;
                     scl_en <= 1'b0;
+                    rb_i_valid <= 1'b0;
 
                     stall_count <= 0;
 
-                    if (~fifo_empty) begin
+                    if (~i_fifo_empty) begin
                         pres_state <= START;
-                        fifo_pop <= 1'b1;
+                        i_fifo_pop <= 1'b1;
                     end
                 end
                 START: begin
@@ -107,9 +143,8 @@ module I2C_Controller #(
                     // Reset all inputs
                     a_count <= ADDR_WIDTH - 1;
                     d_count <= DATA_WIDTH - 1;
-                    stop_state <= 1'b0;
 
-                    fifo_pop <= 1'b0;
+                    i_fifo_pop <= 1'b0;
                     pres_state <= ADDR;
                 end
                 ADDR: begin
@@ -160,8 +195,9 @@ module I2C_Controller #(
                             scl_en <= 1'b1;
 
                             pres_state <= STOP;
-                        end else
-                            pres_state <= DATA;
+                        end else begin
+                            pres_state <= (rw) ? RB_DATA : DATA;
+                        end
                 end
                 DATA: begin
                     sda_out <= data[d_count];  
@@ -173,7 +209,18 @@ module I2C_Controller #(
                         pres_state <= PRE_ACK;
                     end
                 end
+                RB_DATA: begin
+                    rb_data[d_count] <= sda;
+                    sda_en <= 1'b0;
+                    scl_en <= 1'b1;
+
+                    d_count <= d_count - 1;
+                    if (d_count[2:0] == 3'b000) begin
+                        pres_state <= PRE_ACK;
+                    end
+                end
                 STOP: begin
+                    rb_i_valid <= rw;
                     sda_en <= 1'b0;
                     scl_en <= 1'b0;
                     pres_state <= IDLE;
@@ -181,7 +228,9 @@ module I2C_Controller #(
             endcase
         end
         else begin
-            scl_out <= 1'b1;
+            scl_out <= 1'b0;
+            if (pres_state == STOP) 
+                scl_out <= 1'b1;
         end
     end
 endmodule

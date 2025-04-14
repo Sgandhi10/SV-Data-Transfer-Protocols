@@ -27,3 +27,7 @@ graph TD;
 
 https://www.circuitbasics.com/basics-of-the-i2c-communication-protocol/
 https://www.ti.com/lit/an/slva704/slva704.pdf?ts=1742360174522
+
+## Other Implementations
+https://github.com/alexforencich/verilog-i2c/blob/master/rtl/i2c_master.v
+https://github.com/fpganinja/taxi
