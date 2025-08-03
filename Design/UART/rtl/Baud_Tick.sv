@@ -6,7 +6,7 @@
 * Version     : 1.0
 *******************************************************************************/
 
-`timescale 1ns/1ps
+`timescale 1ns/1ns
 
 module Baud_Tick #(
     // === Parameters ===

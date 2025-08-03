@@ -6,6 +6,8 @@
 * Version     : 1.0
 *******************************************************************************/
 
+`timescale 1ns/1ns
+
 module UART_TX #(
     // === Parameters ===
     parameter int DATA_WIDTH  = 8,           // Data width in bits
