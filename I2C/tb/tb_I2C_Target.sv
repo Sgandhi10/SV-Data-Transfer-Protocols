@@ -8,21 +8,21 @@
 *
 **************************************************************************************************/
 
-module tb_I2C_Perhiperal();
+module tb_I2C_Target();
     localparam PERIOD = 10;
     
     logic clk;
     logic rst;
-    inout sda;
+    logic sda;
     logic scl;
 
-    I2C_Peripheral i2c_peripheral(
+    I2C_Target i2c_target(
     );
 
     initial begin
         clk = 0;
         forever begin
-            #PERIOD/2 clk = ~clk;
+            #(PERIOD/2) clk = ~clk;
         end
     end
 
@@ -31,7 +31,7 @@ module tb_I2C_Perhiperal();
         sda = 1;
         scl = 1;
 
-        #10 rst = 0
+        #10 rst = 0;
     end
 
 endmodule

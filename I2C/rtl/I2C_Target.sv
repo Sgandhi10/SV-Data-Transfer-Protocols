@@ -6,7 +6,7 @@
 * Version : 1.0 (SG) Initial Version
 ******************************************************************************/
 
-module I2C_Peripheral#(
+module I2C_Target#(
     parameter ADDR_WIDTH = 7,
     parameter DATA_WIDTH = 32,
     parameter ADDRESS = 8'h50
@@ -24,7 +24,7 @@ module I2C_Peripheral#(
     // Device Output Signals
     output logic o_valid,
     output logic [DATA_WIDTH-1 : 0] o_data
-)
+);
     // Setup Pull-up resistors
     pullup (scl);
     pullup (sda);
