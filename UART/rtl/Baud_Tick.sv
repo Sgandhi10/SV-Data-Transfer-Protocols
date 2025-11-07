@@ -6,7 +6,7 @@
 * Version     : 1.0
 *******************************************************************************/
 
-`timescale 1ns/1ps
+`timescale 1ns/1ns
 
 module Baud_Tick #(
     // === Parameters ===
@@ -40,7 +40,7 @@ module Baud_Tick #(
             accumulator <= 0;
             baud_tick   <= 0;
         end else begin
-            accumulator += (1 << FRACTIONAL);
+            accumulator <= accumulator + (1 << FRACTIONAL);
             baud_tick   <= 0;
 
             if (accumulator >= (BAUD_DIV << FRACTIONAL)) begin

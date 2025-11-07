@@ -6,24 +6,27 @@
 * Version     : 1.0
 *******************************************************************************/
 
-module UART_TX #(
+`timescale 1ns/1ns
+
+module UART_TX 
+    import UART_pkg::*;
+#(
     // === Parameters ===
     parameter int DATA_WIDTH  = 8,           // Data width in bits
     parameter int BAUD_RATE   = 9600,        // Baud rate
     parameter int CLOCK_FREQ  = 50_000_000,  // Clock frequency in Hz
-    parameter int PARITY  = 1,           // 0: None, 1: Even, 2: Odd
+    parameter int PARITY      = 1,           // 0: None, 1: Even, 2: Odd
     parameter int OVERSAMPLE  = 16           // Oversampling factor
 ) (
-    // === Inputs ===
-    input  logic clk,         // System clock
-    input  logic baud_tick,   // Baud rate * oversample tick
-    input  logic rst_n,       // Active-low reset
-    input  logic start,       // Start transmission
-    input  logic [DATA_WIDTH-1:0] data_in, // Data to transmit
-
     // === Outputs ===
     output logic tx,           // Serial data output
-    output logic tx_busy      // Transmission in progress
+    output logic tx_busy,      // Transmission in progress
+    
+    // === Inputs ===
+    input  baud_tick,   // Baud rate * oversample tick
+    input  rst_n,       // Active-low reset
+    input  start,       // Start transmission
+    input  [DATA_WIDTH-1:0] data_in // Data to transmit
 );
 
     // === Baud Clock Generation (1/2 baud tick toggle) ===
@@ -43,15 +46,6 @@ module UART_TX #(
             end
         end
     end
-
-    // === State Machine Definition ===
-    typedef enum logic [2:0] {
-        IDLE,
-        START_BIT,
-        DATA_BITS,
-        PARITY_BIT,
-        STOP_BIT
-    } state_t;
 
     state_t current_state;
 

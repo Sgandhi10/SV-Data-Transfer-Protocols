@@ -7,7 +7,7 @@
 * Version: 1.0
 *******************************************************************************/
 
-`timescale 1ns/1ps
+`timescale 1ns/1ns
 
 module UART #(
     parameter int DATA_WIDTH  = 8,
@@ -74,7 +74,6 @@ module UART #(
         .BAUD_RATE(BAUD_RATE),
         .CLOCK_FREQ(CLOCK_FREQ)
     ) uart_tx (
-        .clk(clk),
         .baud_tick(baud_tick),
         .rst_n(rst_n),
         .start(start),
@@ -141,7 +140,6 @@ module UART #(
         .PARITY(PARITY),
         .OVERSAMPLE(OVERSAMPLE)
     ) uart_rx (
-        .clk(clk),
         .baud_tick(baud_tick),
         .rst_n(rst_n),
         .rx(rx),

@@ -15,9 +15,9 @@ module tb_UART;
     localparam int DATA_WIDTH  = 8;
     localparam int BAUD_RATE   = 9600;
     localparam int CLOCK_FREQ  = 50_000_000;
-    localparam int PARITY      = 1; // Even
+    localparam int PARITY      = 1;     // Even
     localparam int OVERSAMPLE  = 16;
-    localparam real CLK_PERIOD = 1e9 / CLOCK_FREQ;
+    localparam real CLK_PERIOD = 1e9;   // CLOCK_FREQ;
 
     // === DUT I/O ===
     logic clk;
@@ -140,6 +140,7 @@ module tb_UART;
                 end
             end
         end
+        $dumpfile("tb_UART.vcd");
     end
 
 endmodule
