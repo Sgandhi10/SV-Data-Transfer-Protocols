@@ -12,23 +12,23 @@ module register_pg #(
 ) (
     output logic [WIDTH-1:0] q [NUM_REGS-1:0],
 
-    input [WIDTH-1:0] d,
+    
     input clk,
-    input rst_n,
-    input [$clog2(NUM_REGS)-1:0] en
+    input rst,
+    input [WIDTH-1:0] d,
+    input [$clog2(NUM_REGS)-1:0] addr,
+    input en
 );
     genvar i;
-    generate 
-    for(i = 0; i < NUM_REGS; i++) begin : reg_array
-        // Sequential logic for each register operation
-        // register #(.WIDTH(WIDTH)) reg_inst (.q(q[i]), .d(d[i]), .clk, .rst_n, .en(en == i));
-        always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            q[i] <= {8{1'b0}}; // Reset output to zero
-        end else if(en == i) begin
-            q[i] <= d; // Load data into register
+    generate
+        for (i = 0; i < NUM_REGS; i = i + 1) begin : reg_array
+            always_ff @(posedge clk or posedge rst) begin
+                if (rst) begin
+                    q[i] <= '0;
+                end else if (en && (addr == i)) begin
+                    q[i] <= d;
+                end
+            end
         end
-    end
-    end
     endgenerate
 endmodule
